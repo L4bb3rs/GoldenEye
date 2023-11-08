@@ -268,8 +268,8 @@ class Striker(Process):
             'http://www.bing.com/',
             'http://www.baidu.com/',
             'http://www.yandex.com/',
-            'http://' + self.host + '/'
-            ]
+            f'http://{self.host}/',
+        ]
 
 
     def __del__(self):
@@ -402,27 +402,27 @@ class Striker(Process):
             browser_string = random.choice(browser['name'])
 
             if 'ext_pre' in browser:
-                browser_string = "%s; %s" % (random.choice(browser['ext_pre']), browser_string)
+                browser_string = f"{random.choice(browser['ext_pre'])}; {browser_string}"
 
-            sysinfo = "%s; %s" % (browser_string, sysinfo)
+            sysinfo = f"{browser_string}; {sysinfo}"
 
             if 'ext_post' in browser:
-                sysinfo = "%s; %s" % (sysinfo, random.choice(browser['ext_post']))
+                sysinfo = f"{sysinfo}; {random.choice(browser['ext_post'])}"
 
 
         if 'ext' in os and os['ext']:
-            sysinfo = "%s; %s" % (sysinfo, random.choice(os['ext']))
+            sysinfo = f"{sysinfo}; {random.choice(os['ext'])}"
 
-        ua_string = "%s (%s)" % (mozilla_version, sysinfo)
+        ua_string = f"{mozilla_version} ({sysinfo})"
 
         if 'name' in platform and platform['name']:
-            ua_string = "%s %s" % (ua_string, random.choice(platform['name']))
+            ua_string = f"{ua_string} {random.choice(platform['name'])}"
 
         if 'details' in platform and platform['details']:
-            ua_string = "%s (%s)" % (ua_string, random.choice(platform['details']) if len(platform['details']) > 1 else platform['details'][0] )
+            ua_string = f"{ua_string} ({random.choice(platform['details']) if len(platform['details']) > 1 else platform['details'][0]})"
 
         if 'extensions' in platform and platform['extensions']:
-            ua_string = "%s %s" % (ua_string, random.choice(platform['extensions']))
+            ua_string = f"{ua_string} {random.choice(platform['extensions'])}"
 
         return ua_string
 
@@ -437,7 +437,7 @@ class Striker(Process):
         # Random accept encoding
         acceptEncoding = ['\'\'','*','identity','gzip','deflate']
         random.shuffle(acceptEncoding)
-        nrEncodings = random.randint(1,int(len(acceptEncoding)/2))
+        nrEncodings = random.randint(1, len(acceptEncoding) // 2)
         roundEncodings = acceptEncoding[:nrEncodings]
 
         http_headers = {
@@ -466,7 +466,7 @@ class Striker(Process):
             random_referer = random.choice(self.referers) + url_part
 
             if random.randrange(2) == 0:
-                random_referer = random_referer + '?' + self.generateQueryString(random.randint(1, 10))
+                random_referer = f'{random_referer}?{self.generateQueryString(random.randint(1, 10))}'
 
             http_headers['Referer'] = random_referer
 
@@ -584,7 +584,7 @@ def main():
                 else:
                     error("method {0} is invalid".format(a))
             else:
-                error("option '"+o+"' doesn't exists")
+                error(f"option '{o}' doesn't exists")
 
 
         if uas_file:
